@@ -4,8 +4,8 @@ import { FaRegEye } from "react-icons/fa";
 import { FaRegEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from 'react-router-dom';
-import axios from "axios"
-import { serverUrl } from '../App';
+import axios from '../utils/axiosInstance'
+import { serverUrl } from '../utils/csrfClient';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { ClipLoader } from 'react-spinners';
@@ -13,15 +13,16 @@ import { useDispatch } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
 function SignIn() {
     const primaryColor = "#ff4d2d";
-    const hoverColor = "#e64323";
     const bgColor = "#fff9f6";
     const borderColor = "#ddd";
     const [showPassword, setShowPassword] = useState(false)
     const navigate=useNavigate()
     const [email,setEmail]=useState("")
     const [password,setPassword]=useState("")
-    const [err,setErr]=useState("")
-    const [loading,setLoading]=useState(false)
+     const [err,setErr]=useState("")
+     const [loading,setLoading]=useState(false)
+     const [pendingGoogleToken,setPendingGoogleToken]=useState("")
+     const [googleMobile,setGoogleMobile]=useState("")
     const dispatch=useDispatch()
      const handleSignIn=async () => {
         setLoading(true)
@@ -29,7 +30,8 @@ function SignIn() {
             const result=await axios.post(`${serverUrl}/api/auth/signin`,{
                 email,password
             },{withCredentials:true})
-           dispatch(setUserData(result.data))
+           window.__VINGO_CSRF_TOKEN = result.data.csrfToken
+           dispatch(setUserData(result.data.user))
             setErr("")
             setLoading(false)
         } catch (error) {
@@ -38,15 +40,34 @@ function SignIn() {
         }
      }
      const handleGoogleAuth=async () => {
-             const provider=new GoogleAuthProvider()
-             const result=await signInWithPopup(auth,provider)
+         if(pendingGoogleToken && googleMobile.trim().length<10){
+             return setErr("Please enter a valid mobile number to complete Google sign up")
+         }
+       let idToken=pendingGoogleToken
        try {
-         const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,{
-             email:result.user.email,
-         },{withCredentials:true})
-         dispatch(setUserData(data))
+           if(!idToken){
+           const provider=new GoogleAuthProvider()
+           const result=await signInWithPopup(auth,provider)
+           idToken=await result.user.getIdToken()
+           }
+         const payload={firebaseToken: idToken}
+         if(pendingGoogleToken && googleMobile){
+           payload.mobile=googleMobile.trim()
+         }
+         const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,payload,{withCredentials:true})
+         window.__VINGO_CSRF_TOKEN = data.csrfToken
+         dispatch(setUserData(data.user))
+         setPendingGoogleToken("")
+         setGoogleMobile("")
+         setErr("")
        } catch (error) {
-         console.log(error)
+         const data=error?.response?.data
+         if(data?.needsMobile){
+           setPendingGoogleToken(idToken)
+           setErr(data.message)
+         } else {
+           setErr(data?.message || "Google authentication failed")
+         }
        }
           }
     return (
@@ -84,6 +105,14 @@ function SignIn() {
                 {loading?<ClipLoader size={20} color='white'/>:"Sign In"}
             </button>
       {err && <p className='text-red-500 text-center my-[10px]'>*{err}</p>}
+
+      {pendingGoogleToken && (
+        <div className='mb-4'>
+          <label htmlFor="googleMobile" className='block text-gray-700 font-medium mb-1'>Mobile Number</label>
+          <input type="tel" className='w-full border rounded-lg px-3 py-2 focus:outline-none ' placeholder='Enter your Mobile Number' style={{ border: `1px solid ${borderColor}` }} onChange={(e)=>setGoogleMobile(e.target.value)} value={googleMobile}/>
+          <p className='text-xs text-gray-500 mt-2'>Required to finish Google sign up. Then press the Google button again.</p>
+        </div>
+      )}
 
             <button className='w-full mt-4 flex items-center justify-center gap-2 border rounded-lg px-4 py-2 transition cursor-pointer duration-200 border-gray-400 hover:bg-gray-100' onClick={handleGoogleAuth}>
 <FcGoogle size={20}/>

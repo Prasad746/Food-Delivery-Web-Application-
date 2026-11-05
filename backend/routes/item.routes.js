@@ -1,19 +1,22 @@
 import express from "express"
 
 import isAuth from "../middlewares/isAuth.js"
+import { createOrderRateLimiter, ORDER_RATE_LIMITS } from "../middlewares/orderRateLimit.js"
 import { addItem, deleteItem, editItem, getItemByCity, getItemById, getItemsByShop, rating, searchItems } from "../controllers/item.controllers.js"
-import { upload } from "../middlewares/multer.js"
+import { getFoodRecommendations } from "../controllers/recommendation.controllers.js"
+import { secureImageUpload, validateUploadedImages } from "../middlewares/multer.js"
 
 
 
 const itemRouter=express.Router()
 
-itemRouter.post("/add-item",isAuth,upload.single("image"),addItem)
-itemRouter.post("/edit-item/:itemId",isAuth,upload.single("image"),editItem)
+itemRouter.post("/add-item",isAuth,createOrderRateLimiter(ORDER_RATE_LIMITS.upload,{ name: "upload-add-item" }),secureImageUpload("image"),validateUploadedImages,addItem)
+itemRouter.post("/edit-item/:itemId",isAuth,createOrderRateLimiter(ORDER_RATE_LIMITS.upload,{ name: "upload-edit-item" }),secureImageUpload("image"),validateUploadedImages,editItem)
 itemRouter.get("/get-by-id/:itemId",isAuth,getItemById)
-itemRouter.get("/delete/:itemId",isAuth,deleteItem)
+itemRouter.delete("/delete/:itemId",isAuth,deleteItem)
 itemRouter.get("/get-by-city/:city",isAuth,getItemByCity)
 itemRouter.get("/get-by-shop/:shopId",isAuth,getItemsByShop)
 itemRouter.get("/search-items",isAuth,searchItems)
-itemRouter.post("/rating",isAuth,rating)
+itemRouter.get("/recommendations",isAuth,getFoodRecommendations)
+itemRouter.post("/rating",isAuth,createOrderRateLimiter(ORDER_RATE_LIMITS.rating,{ name: "rating" }),rating)
 export default itemRouter

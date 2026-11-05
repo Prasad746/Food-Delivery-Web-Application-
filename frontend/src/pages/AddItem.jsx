@@ -1,17 +1,17 @@
 import React from 'react'
 import { IoIosArrowRoundBack } from "react-icons/io";
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import { useState } from 'react';
-import { useRef } from 'react';
-import axios from 'axios';
-import { serverUrl } from '../App';
+import axios from '../utils/axiosInstance';
+import { serverUrl } from '../utils/csrfClient';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
+import DiscountFields from '../components/DiscountFields';
+import { createEmptyDiscountForm, discountFormToPayload, serializeDiscountField, validateDiscountForm } from '../utils/discountPricing';
 function AddItem() {
     const navigate = useNavigate()
-    const { myShopData } = useSelector(state => state.owner)
     const [loading,setLoading]=useState(false)
     const [name, setName] = useState("")
     const [price, setPrice] = useState(0)
@@ -19,6 +19,9 @@ function AddItem() {
     const [backendImage, setBackendImage] = useState(null)
     const [category, setCategory] = useState("")
     const [foodType, setFoodType] = useState("veg")
+    const [discountForm, setDiscountForm] = useState(createEmptyDiscountForm)
+    const [discountErrors, setDiscountErrors] = useState({})
+    const [error, setError] = useState("")
     const categories = ["Snacks",
         "Main Course",
         "Desserts",
@@ -39,6 +42,12 @@ function AddItem() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setError("")
+        const discountCheck = validateDiscountForm(discountForm, price)
+        setDiscountErrors(discountCheck.errors)
+        if (!discountCheck.valid) {
+            return
+        }
         setLoading(true)
         try {
             const formData = new FormData()
@@ -46,6 +55,10 @@ function AddItem() {
             formData.append("category",category)
             formData.append("foodType", foodType)
             formData.append("price", price)
+            const discountPayload = discountFormToPayload(discountForm)
+            if (discountPayload) {
+                formData.append("discount", serializeDiscountField(discountPayload))
+            }
             if (backendImage) {
                 formData.append("image", backendImage)
             }
@@ -54,7 +67,7 @@ function AddItem() {
            setLoading(false)
            navigate("/")
         } catch (error) {
-            console.log(error)
+            setError(error?.response?.data?.message || "Failed to add item. Please try again.")
             setLoading(false)
         }
     }
@@ -91,7 +104,7 @@ function AddItem() {
                     </div>
                     <div>
                         <label className='block text-sm font-medium text-gray-700 mb-1'>Price</label>
-                        <input type="number" placeholder='0' className='w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
+                        <input type="number" min='0' step='0.01' placeholder='0' className='w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
                             onChange={(e) => setPrice(e.target.value)}
                             value={price}
                         />
@@ -125,6 +138,17 @@ function AddItem() {
 
                         </select>
                     </div>
+
+                    <DiscountFields
+                        value={discountForm}
+                        onChange={(nextDiscount) => {
+                            setDiscountForm(nextDiscount)
+                            setDiscountErrors({})
+                        }}
+                        errors={discountErrors}
+                    />
+
+                    {error && <p className='text-sm text-red-600' role='alert'>{error}</p>}
 
                     <button className='w-full bg-[#ff4d2d] text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:bg-orange-600 hover:shadow-lg transition-all duration-200 cursor-pointer' disabled={loading}>
                       {loading?<ClipLoader size={20} color='white' />:"Save"}

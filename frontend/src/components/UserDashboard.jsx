@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
-import Nav from './NaV.JSX'
+import Nav from './Nav'
 import { categories } from '../category'
 import CategoryCard from './CategoryCard'
 import { FaCircleChevronLeft } from "react-icons/fa6";
 import { FaCircleChevronRight } from "react-icons/fa6";
 import { useSelector } from 'react-redux';
 import FoodCard from './FoodCard';
+import FoodRecommendations from './FoodRecommendations';
+import SupportChatbot from './SupportChatbot';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { serverUrl } from '../App';
 
 function UserDashboard() {
   const {currentCity,shopInMyCity,itemsInMyCity,searchItems}=useSelector(state=>state.user)
@@ -57,26 +57,21 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
 
 
   useEffect(()=>{
-    if(cateScrollRef.current){
+    const cateEl = cateScrollRef.current
+    const shopEl = shopScrollRef.current
+    const onCateScroll = () => updateButton(cateScrollRef,setShowLeftCateButton,setShowRightCateButton)
+    const onShopScroll = () => updateButton(shopScrollRef,setShowLeftShopButton,setShowRightShopButton)
+    if(cateEl){
       updateButton(cateScrollRef,setShowLeftCateButton,setShowRightCateButton)
       updateButton(shopScrollRef,setShowLeftShopButton,setShowRightShopButton)
-      cateScrollRef.current.addEventListener('scroll',()=>{
-        updateButton(cateScrollRef,setShowLeftCateButton,setShowRightCateButton)
-      })
-      shopScrollRef.current.addEventListener('scroll',()=>{
-         updateButton(shopScrollRef,setShowLeftShopButton,setShowRightShopButton)
-      })
-     
+      cateEl.addEventListener('scroll', onCateScroll)
+      if (shopEl) shopEl.addEventListener('scroll', onShopScroll)
     }
-
-    return ()=>{cateScrollRef?.current?.removeEventListener("scroll",()=>{
-        updateButton(cateScrollRef,setShowLeftCateButton,setShowRightCateButton)
-      })
-         shopScrollRef?.current?.removeEventListener("scroll",()=>{
-        updateButton(shopScrollRef,setShowLeftShopButton,setShowRightShopButton)
-      })}
-
-  },[categories])
+    return () => {
+      cateEl?.removeEventListener('scroll', onCateScroll)
+      shopEl?.removeEventListener('scroll', onShopScroll)
+    }
+  }, [])
 
 
   return (
@@ -95,6 +90,8 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
 </div>
         </div>
       )}
+
+      <FoodRecommendations />
 
       <div className="w-full max-w-6xl flex flex-col gap-5 items-start p-[10px]">
 
@@ -142,13 +139,14 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
 
 <div className='w-full h-auto flex flex-wrap gap-[20px] justify-center'>
 {updatedItemsList?.map((item,index)=>(
-  <FoodCard key={index} data={item}/>
+  <FoodCard key={item?._id || item?.id || index} data={item}/>
 ))}
 </div>
 
 
       </div>
 
+      <SupportChatbot />
 
     </div>
   )

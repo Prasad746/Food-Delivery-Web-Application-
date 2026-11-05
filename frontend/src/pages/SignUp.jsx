@@ -4,8 +4,8 @@ import { FaRegEye } from "react-icons/fa";
 import { FaRegEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from 'react-router-dom';
-import axios from "axios"
-import { serverUrl } from '../App';
+import axios from '../utils/axiosInstance'
+import { serverUrl } from '../utils/csrfClient';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { ClipLoader } from "react-spinners"
@@ -13,7 +13,6 @@ import { useDispatch } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
 function SignUp() {
     const primaryColor = "#ff4d2d";
-    const hoverColor = "#e64323";
     const bgColor = "#fff9f6";
     const borderColor = "#ddd";
     const [showPassword, setShowPassword] = useState(false)
@@ -32,7 +31,8 @@ function SignUp() {
             const result=await axios.post(`${serverUrl}/api/auth/signup`,{
                 fullName,email,password,mobile,role
             },{withCredentials:true})
-            dispatch(setUserData(result.data))
+            window.__VINGO_CSRF_TOKEN = result.data.csrfToken
+            dispatch(setUserData(result.data.user))
             setErr("")
             setLoading(false)
         } catch (error) {
@@ -45,19 +45,20 @@ function SignUp() {
         if(!mobile){
           return setErr("mobile no is required")
         }
-        const provider=new GoogleAuthProvider()
-        const result=await signInWithPopup(auth,provider)
-  try {
-    const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,{
-        fullName:result.user.displayName,
-        email:result.user.email,
-        role,
-        mobile
-    },{withCredentials:true})
-   dispatch(setUserData(data))
-  } catch (error) {
-    console.log(error)
-  }
+        try {
+          const provider=new GoogleAuthProvider()
+          const result=await signInWithPopup(auth,provider)
+          const idToken = await result.user.getIdToken()
+          const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,{
+              firebaseToken: idToken,
+              mobile,
+              role,
+          },{withCredentials:true})
+          window.__VINGO_CSRF_TOKEN = data.csrfToken
+          dispatch(setUserData(data.user))
+        } catch (error) {
+          setErr(error?.response?.data?.message || "Google authentication failed")
+        }
      }
     return (
         <div className='min-h-screen w-full flex items-center justify-center p-4' style={{ backgroundColor: bgColor }}>
@@ -114,6 +115,9 @@ function SignUp() {
                             </button>
                         ))}
                     </div>
+                    <p className='text-xs text-gray-500 mt-2'>
+                        Admin accounts are provisioned by the operator. Public sign-up supports User, Owner, and Delivery Boy only.
+                    </p>
                 </div>
 
             <button className={`w-full font-semibold py-2 rounded-lg transition duration-200 bg-[#ff4d2d] text-white hover:bg-[#e64323] cursor-pointer`} onClick={handleSignUp} disabled={loading}>

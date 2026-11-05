@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { FaLocationDot } from "react-icons/fa6";
 import { IoIosSearch } from "react-icons/io";
 import { FiShoppingCart } from "react-icons/fi";
 import { useDispatch, useSelector } from 'react-redux';
 import { RxCross2 } from "react-icons/rx";
-import axios from 'axios';
-import { serverUrl } from '../App';
-import { setSearchItems, setUserData } from '../redux/userSlice';
+import axios from '../utils/axiosInstance';
+import { serverUrl } from '../utils/csrfClient';
+import { bootstrapCsrfToken } from '../utils/csrfClient';
+import { setSearchItems, setUserData, clearSessionState } from '../redux/userSlice';
+import { setMyShopData, clearOwnerSessionState } from '../redux/ownerSlice';
+import { setLocation, setAddress, clearMapSessionState } from '../redux/mapSlice';
 import { FaPlus } from "react-icons/fa6";
 import { TbReceipt2 } from "react-icons/tb";
 import { useNavigate } from 'react-router-dom';
+import LocationPicker from './LocationPicker';
 function Nav() {
     const { userData, currentCity ,cartItems} = useSelector(state => state.user)
         const { myShopData} = useSelector(state => state.owner)
@@ -18,39 +21,51 @@ function Nav() {
     const [query,setQuery]=useState("")
     const dispatch = useDispatch()
     const navigate=useNavigate()
+    const clearLocalSession = () => {
+        dispatch(setUserData(null))
+        dispatch(setSearchItems(null))
+        dispatch(clearSessionState())
+        dispatch(setMyShopData(null))
+        dispatch(clearOwnerSessionState())
+        dispatch(setLocation({ lat: null, lon: null }))
+        dispatch(setAddress(null))
+        dispatch(clearMapSessionState())
+    }
     const handleLogOut = async () => {
         try {
-            const result = await axios.get(`${serverUrl}/api/auth/signout`, { withCredentials: true })
-            dispatch(setUserData(null))
+            await axios.post(`${serverUrl}/api/auth/signout`, {}, { withCredentials: true })
         } catch (error) {
-            console.log(error)
+            console.error('Logout failed', error?.response?.status || 'network error')
+        } finally {
+            window.__VINGO_CSRF_TOKEN = ""
+            clearLocalSession()
+            bootstrapCsrfToken().catch(err => console.error('CSRF re-bootstrap after logout failed', err))
         }
     }
 
-    const handleSearchItems=async () => {
-      try {
-        const result=await axios.get(`${serverUrl}/api/item/search-items?query=${query}&city=${currentCity}`,{withCredentials:true})
-    dispatch(setSearchItems(result.data))
-      } catch (error) {
-        console.log(error)
-      }
-    }
-
     useEffect(()=>{
-        if(query){
-handleSearchItems()
+        const normalizedQuery=query.trim()
+        if(normalizedQuery){
+          (async () => {
+            try {
+              const params=new URLSearchParams({ query: normalizedQuery, city: currentCity || "" })
+              const result = await axios.get(`${serverUrl}/api/item/search-items?${params.toString()}`, { withCredentials: true })
+              dispatch(setSearchItems(result.data))
+            } catch (error) {
+              console.log(error)
+            }
+          })()
         }else{
               dispatch(setSearchItems(null))
         }
 
-    },[query])
+    },[query, currentCity, dispatch])
     return (
         <div className='w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 z-[9999] bg-[#fff9f6] overflow-visible'>
 
             {showSearch && userData.role == "user" && <div className='w-[90%] h-[70px]  bg-white shadow-xl rounded-lg items-center gap-[20px] flex fixed top-[80px] left-[5%] md:hidden'>
                 <div className='flex items-center w-[30%] overflow-hidden gap-[10px] px-[10px] border-r-[2px] border-gray-400'>
-                    <FaLocationDot size={25} className=" text-[#ff4d2d]" />
-                    <div className='w-[80%] truncate text-gray-600'>{currentCity}</div>
+                    <LocationPicker />
                 </div>
                 <div className='w-[80%] flex items-center gap-[10px]'>
                     <IoIosSearch size={25} className='text-[#ff4d2d]' />
@@ -63,8 +78,7 @@ handleSearchItems()
             <h1 className='text-3xl font-bold mb-2 text-[#ff4d2d]'>Vingo</h1>
             {userData.role == "user" && <div className='md:w-[60%] lg:w-[40%] h-[70px] bg-white shadow-xl rounded-lg items-center gap-[20px] hidden md:flex'>
                 <div className='flex items-center w-[30%] overflow-hidden gap-[10px] px-[10px] border-r-[2px] border-gray-400'>
-                    <FaLocationDot size={25} className=" text-[#ff4d2d]" />
-                    <div className='w-[80%] truncate text-gray-600'>{currentCity}</div>
+                    <LocationPicker />
                 </div>
                 <div className='w-[80%] flex items-center gap-[10px]'>
                     <IoIosSearch size={25} className='text-[#ff4d2d]' />
@@ -87,11 +101,11 @@ handleSearchItems()
                     <div className='hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] font-medium' onClick={()=>navigate("/my-orders")}>
                       <TbReceipt2 size={20}/>
                       <span>My Orders</span>
-                      <span className='absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]'>0</span>
+                      
                     </div>
                      <div className='md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] font-medium' onClick={()=>navigate("/my-orders")}>
                       <TbReceipt2 size={20}/>
-                      <span className='absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]'>0</span>
+                      
                     </div>
                 </>: (
                     <>
@@ -102,9 +116,9 @@ handleSearchItems()
            
 
 
-                <button className='hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium' onClick={()=>navigate("/my-orders")}>
+                {userData.role!="admin" && <button className='hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium' onClick={()=>navigate("/my-orders")}>
                     My Orders
-                </button>
+                </button>}
                     </>
                 )}
 

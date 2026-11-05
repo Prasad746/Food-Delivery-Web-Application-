@@ -4,9 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import { useState } from 'react';
-import { useRef } from 'react';
-import axios from 'axios';
-import { serverUrl } from '../App';
+import axios from '../utils/axiosInstance';
+import { serverUrl } from '../utils/csrfClient';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
 function CreateEditShop() {

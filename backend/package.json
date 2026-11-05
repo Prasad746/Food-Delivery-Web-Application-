@@ -2,25 +2,38 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "dev": "nodemon index.js"
+    "dev": "nodemon dev-bootstrap.js",
+    "test": "node --test tests/**/*.test.js",
+    "admin:provision": "node scripts/provision-admin.js"
   },
   "author": "Virtual code",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.7.0",
+    "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
+    "engine.io": "6.6.11",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.7.1",
+    "firebase-admin": "^14.5.0",
+    "helmet": "^8.3.0",
+    "joi": "^18.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.17.2",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^10.3.1",
+    "razorpay": "^2.9.8",
+    "socket.io": "4.8.4",
+    "socket.io-adapter": "2.5.8",
+    "socket.io-parser": "4.2.7"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.10",
-    "razorpay": "^2.9.6",
-    "socket.io": "^4.8.1"
+    "supertest": "^7.3.1"
   }
 }

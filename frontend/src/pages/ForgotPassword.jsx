@@ -1,13 +1,14 @@
-import axios from 'axios';
+import axios from '../utils/axiosInstance';
 import React, { useState } from 'react'
 import { IoIosArrowRoundBack } from "react-icons/io";
 import { useNavigate } from 'react-router-dom';
-import { serverUrl } from '../App';
+import { serverUrl } from '../utils/csrfClient';
 import { ClipLoader } from 'react-spinners';
 function ForgotPassword() {
   const [step, setStep] = useState(1)
   const [email,setEmail]=useState("")
   const [otp,setOtp]=useState("")
+  const [resetToken,setResetToken]=useState("")
   const [newPassword,setNewPassword]=useState("")
   const [confirmPassword,setConfirmPassword]=useState("")
   const [err,setErr]=useState("")
@@ -16,8 +17,8 @@ const [loading,setLoading]=useState(false)
   const handleSendOtp=async () => {
     setLoading(true)
     try {
-      const result=await axios.post(`${serverUrl}/api/auth/send-otp`,{email},{withCredentials:true})
-      console.log(result)
+      await axios.post(`${serverUrl}/api/auth/send-otp`,{email},{withCredentials:true})
+      setResetToken("")
       setErr("")
       setStep(2)
       setLoading(false)
@@ -30,7 +31,14 @@ const [loading,setLoading]=useState(false)
       setLoading(true)
     try {
       const result=await axios.post(`${serverUrl}/api/auth/verify-otp`,{email,otp},{withCredentials:true})
-      console.log(result)
+      const issuedResetToken=result.data?.resetToken
+      if(!issuedResetToken){
+        setErr("Failed to start password reset. Request a new OTP.")
+        setStep(1)
+        setLoading(false)
+        return
+      }
+      setResetToken(issuedResetToken)
       setErr("")
       setStep(3)
         setLoading(false)
@@ -45,14 +53,19 @@ const [loading,setLoading]=useState(false)
     }
     setLoading(true)
     try {
-      const result=await axios.post(`${serverUrl}/api/auth/reset-password`,{email,newPassword},{withCredentials:true})
+      await axios.post(`${serverUrl}/api/auth/reset-password`,{email,newPassword,resetToken},{withCredentials:true})
+      setResetToken("")
       setErr("")
-      console.log(result)
         setLoading(false)
       navigate("/signin")
     } catch (error) {
-     setErr(error?.response?.data?.message)
-       setLoading(false)
+      const message=error?.response?.data?.message
+      if(message==="invalid or expired reset token"){
+        setResetToken("")
+        setStep(1)
+      }
+      setErr(message)
+      setLoading(false)
     }
   }
   return (

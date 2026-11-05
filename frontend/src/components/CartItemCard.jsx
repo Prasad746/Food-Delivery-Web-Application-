@@ -4,8 +4,13 @@ import { FaPlus } from "react-icons/fa";
 import { CiTrash } from "react-icons/ci";
 import { useDispatch } from 'react-redux';
 import { removeCartItem, updateQuantity } from '../redux/userSlice';
+import { discountBadgeLabel, formatAmount, getCartItemPricing } from '../utils/discountPricing';
 function CartItemCard({data}) {
     const dispatch=useDispatch()
+    const pricing = getCartItemPricing(data)
+    const badge = pricing.discountApplied
+        ? discountBadgeLabel({ type: pricing.discountType, value: pricing.discountValue })
+        : ""
     const handleIncrease=(id,currentQty)=>{
        dispatch(updateQuantity({id,quantity:currentQty+1}))
     }
@@ -21,8 +26,14 @@ function CartItemCard({data}) {
         <img src={data.image} alt="" className='w-20 h-20 object-cover rounded-lg border'/>
         <div>
             <h1 className='font-medium text-gray-800'>{data.name}</h1>
-            <p className='text-sm text-gray-500'>₹{data.price} x {data.quantity}</p>
-            <p className="font-bold text-gray-900">₹{data.price*data.quantity}</p>
+            {badge && <span className='inline-block rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-[#c43a22]'>{badge}</span>}
+            <p className='text-sm text-gray-500'>
+                {pricing.discountApplied && <span className='mr-1 line-through'>₹{formatAmount(pricing.originalPrice)}</span>}
+                <span>₹{formatAmount(pricing.finalPrice)} x {data.quantity}</span>
+            </p>
+            <p className="font-bold text-gray-900">₹{formatAmount(pricing.lineTotal)}</p>
+            {pricing.discountApplied && <p className='text-xs font-medium text-green-700'>You save ₹{formatAmount(pricing.savings)}</p>}
+            {data.isAvailable === false && <p className='text-xs font-medium text-red-600'>Item is no longer available</p>}
         </div>
       </div>
       <div className='flex items-center gap-3'>

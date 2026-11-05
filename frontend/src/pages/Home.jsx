@@ -1,8 +1,9 @@
 import React from 'react'
 import { useSelector } from 'react-redux'
-import UserDashboard from '../components/userDashboard'
+import UserDashboard from '../components/UserDashboard'
 import OwnerDashboard from '../components/OwnerDashboard'
 import DeliveryBoy from '../components/DeliveryBoy'
+import AdminDashboard from '../components/AdminDashboard'
 
 function Home() {
     const {userData}=useSelector(state=>state.user)
@@ -11,6 +12,7 @@ function Home() {
       {userData.role=="user" && <UserDashboard/>}
       {userData.role=="owner" && <OwnerDashboard/>}
       {userData.role=="deliveryBoy" && <DeliveryBoy/>}
+      {userData.role=="admin" && <AdminDashboard/>}
     </div>
   )
 }

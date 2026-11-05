@@ -1,6 +1,6 @@
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
-import { serverUrl } from '../App'
+import { serverUrl } from '../utils/csrfClient'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaStore } from "react-icons/fa6";
 import { FaLocationDot } from "react-icons/fa6";
@@ -12,18 +12,17 @@ function Shop() {
     const [items,setItems]=useState([])
     const [shop,setShop]=useState([])
     const navigate=useNavigate()
-    const handleShop=async () => {
-        try {
-           const result=await axios.get(`${serverUrl}/api/item/get-by-shop/${shopId}`,{withCredentials:true}) 
-           setShop(result.data.shop)
-           setItems(result.data.items)
-        } catch (error) {
-            console.log(error)
-        }
-    }
-
     useEffect(()=>{
-handleShop()
+        const fetchShop = async () => {
+            try {
+               const result=await axios.get(`${serverUrl}/api/item/get-by-shop/${shopId}`,{withCredentials:true})
+               setShop(result.data.shop)
+               setItems(result.data.items)
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        fetchShop()
     },[shopId])
   return (
     <div className='min-h-screen bg-gray-50'>

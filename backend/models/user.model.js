@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { type } from "os";
+import { USER_ROLES } from "../utils/roles.js";
 
 const userSchema = new mongoose.Schema({
     fullName: {
@@ -11,8 +11,15 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique:true
     },
+    firebaseUid:{
+        type: String,
+        unique: true,
+        sparse: true,
+        select: false
+    },
     password:{
         type: String,
+        select: false
     },
     mobile:{
         type: String,
@@ -20,21 +27,44 @@ const userSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        enum:["user","owner","deliveryBoy"],
+        enum:USER_ROLES,
         required:true
     },
-    resetOtp:{
-        type:String
+    authVersion:{
+        type: Number,
+        default: 0,
+        min: 0
     },
+    resetOtp:{
+        type:String,
+        select: false
+    },
+    // Legacy cleanup field. It is never used to authorize a password reset.
     isOtpVerified:{
         type:Boolean,
-        default:false
+        default:false,
+        select: false
+    },
+    resetPasswordTokenHash:{
+        type:String,
+        select: false
+    },
+    resetPasswordExpires:{
+        type:Date,
+        select: false
     },
     otpExpires:{
-        type:Date
+        type:Date,
+        select: false
+    },
+    otpAttempts:{
+        type: Number,
+        default: 0,
+        select: false
     },
     socketId:{
      type:String,
+     select: false
      
     },
     isOnline:{

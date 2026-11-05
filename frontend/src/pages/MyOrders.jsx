@@ -1,34 +1,47 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { IoIosArrowRoundBack } from "react-icons/io";
 import { useNavigate } from 'react-router-dom';
 import UserOrderCard from '../components/UserOrderCard';
 import OwnerOrderCard from '../components/OwnerOrderCard';
 import { setMyOrders, updateOrderStatus, updateRealtimeOrderStatus } from '../redux/userSlice';
+import useSocket from '../hooks/useSocket';
 
 
 function MyOrders() {
-  const { userData, myOrders,socket} = useSelector(state => state.user)
+  const { userData, myOrders } = useSelector(state => state.user)
+  const socket = useSocket()
+  const myOrdersRef = useRef(myOrders)
+  const userDataRef = useRef(userData)
+  useEffect(() => { myOrdersRef.current = myOrders }, [myOrders])
+  useEffect(() => { userDataRef.current = userData }, [userData])
   const navigate = useNavigate()
-const dispatch=useDispatch()
-  useEffect(()=>{
-socket?.on('newOrder',(data)=>{
-if(data.shopOrders?.owner._id==userData._id){
-dispatch(setMyOrders([data,...myOrders]))
-}
-})
+  const dispatch = useDispatch()
+  useEffect(() => {
+    if (!socket) {
+      return undefined
+    }
+    const handleNewOrder = (data) => {
+      if (data.shopOrders?.owner._id == userDataRef.current?._id) {
+        dispatch(setMyOrders([data, ...myOrdersRef.current]))
+      }
+    }
+    const handleOrderStatus = ({ orderId, shopId, status, userId, ownerId, refund, cancelledAt, cancellationReason }) => {
+      const currentUser = userDataRef.current
+      if (userId == currentUser?._id) {
+        dispatch(updateRealtimeOrderStatus({ orderId, shopId, status, refund, cancelledAt, cancellationReason }))
+      } else if (ownerId && ownerId == currentUser?._id) {
+        dispatch(updateOrderStatus({ orderId, shopId, status, refund, cancelledAt, cancellationReason }))
+      }
+    }
+    socket.on('newOrder', handleNewOrder)
+    socket.on('update-status', handleOrderStatus)
 
-socket?.on('update-status',({orderId,shopId,status,userId})=>{
-if(userId==userData._id){
-  dispatch(updateRealtimeOrderStatus({orderId,shopId,status}))
-}
-})
-
-return ()=>{
-  socket?.off('newOrder')
-  socket?.off('update-status')
-}
-  },[socket])
+    return () => {
+      socket.off('newOrder', handleNewOrder)
+      socket.off('update-status', handleOrderStatus)
+    }
+  }, [socket, dispatch])
 
 
 

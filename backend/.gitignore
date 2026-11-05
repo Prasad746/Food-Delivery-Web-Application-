@@ -1,1 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment
 .env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Uploads / temp storage (keep directory structure but ignore files)
+public/*
+!public/.gitkeep

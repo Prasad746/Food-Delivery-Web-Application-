@@ -1,10 +1,11 @@
 import React from 'react'
-import Nav from './NaV.JSX'
+import Nav from './Nav'
 import { useSelector } from 'react-redux'
 import { FaUtensils } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from "react-icons/fa";
-import OwnerItemCard from './ownerItemCard';
+import OwnerItemCard from './OwnerItemCard';
+import OwnerAnalytics from './OwnerAnalytics';
 function OwnerDashboard() {
   const { myShopData } = useSelector(state => state.owner)
   const navigate = useNavigate()
@@ -45,6 +46,8 @@ function OwnerDashboard() {
             </div>
           </div>
 
+          <OwnerAnalytics shopId={myShopData._id} />
+
           {myShopData.items.length==0 && 
             <div className='flex justify-center items-center p-4 sm:p-6'>
           <div className='w-full max-w-md bg-white shadow-lg rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-300'>
@@ -63,7 +66,7 @@ function OwnerDashboard() {
 
             {myShopData.items.length>0 && <div className='flex flex-col items-center gap-4 w-full max-w-3xl '>
               {myShopData.items.map((item,index)=>(
-                <OwnerItemCard data={item} key={index}/>
+                <OwnerItemCard data={item} key={item?._id || item?.id || index}/>
               ))}
               </div>}
             

@@ -1,4 +1,44 @@
 import mongoose from "mongoose";
+import { isValidDiscountConfig } from "../utils/pricing.js";
+
+const discountSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: ["percentage", "fixed"],
+        required: true
+    },
+    value: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    startDate: {
+        type: Date,
+        default: null
+    },
+    endDate: {
+        type: Date,
+        default: null
+    },
+    enabled: {
+        type: Boolean,
+        default: true
+    }
+}, { _id: false })
+
+const validationPriceFor = (context) => {
+    if (context && typeof context.price === "number") {
+        return context.price
+    }
+    if (context && typeof context.getUpdate === "function") {
+        const update = context.getUpdate() || {}
+        const source = update.$set && update.$set.price !== undefined ? update.$set : update
+        if (source.price !== undefined) {
+            return Number(source.price)
+        }
+    }
+    return undefined
+}
 
 const itemSchema = new mongoose.Schema({
     name: {
@@ -39,9 +79,26 @@ const itemSchema = new mongoose.Schema({
         enum:["veg","non veg"],
         required:true
     },
+    isAvailable:{
+        type:Boolean,
+        default:true
+    },
    rating:{
     average:{type:Number,default:0},
     count:{type:Number,default:0}
+   },
+   discount: {
+    type: discountSchema,
+    default: undefined,
+    validate: {
+        validator: function (discount) {
+            if (!discount) {
+                return true
+            }
+            return isValidDiscountConfig(discount, validationPriceFor(this))
+        },
+        message: "Invalid discount configuration"
+    }
    }
 }, { timestamps: true })
 

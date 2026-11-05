@@ -4,14 +4,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import { useState } from 'react';
-import { useRef } from 'react';
-import axios from 'axios';
-import { serverUrl } from '../App';
+import axios from '../utils/axiosInstance';
+import { serverUrl } from '../utils/csrfClient';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
+import DiscountFields from '../components/DiscountFields';
+import { createEmptyDiscountForm, discountFormToPayload, discountToForm, serializeDiscountField, validateDiscountForm } from '../utils/discountPricing';
 function EditItem() {
     const navigate = useNavigate()
-    const { myShopData } = useSelector(state => state.owner)
   const {itemId}=useParams()
    const [currentItem,setCurrentItem]=useState(null)
     const [name, setName] = useState("")
@@ -20,7 +20,11 @@ function EditItem() {
     const [backendImage, setBackendImage] = useState(null)
     const [category, setCategory] = useState("")
     const [foodType, setFoodType] = useState("")
+    const [discountForm, setDiscountForm] = useState(createEmptyDiscountForm)
+    const [discountErrors, setDiscountErrors] = useState({})
+    const [error, setError] = useState("")
    const [loading,setLoading]=useState(false)
+    const { myShopData } = useSelector(state => state.owner)
     const categories = ["Snacks",
         "Main Course",
         "Desserts",
@@ -41,6 +45,12 @@ function EditItem() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setError("")
+        const discountCheck = validateDiscountForm(discountForm, price)
+        setDiscountErrors(discountCheck.errors)
+        if (!discountCheck.valid) {
+            return
+        }
         setLoading(true)
         try {
             const formData = new FormData()
@@ -48,15 +58,28 @@ function EditItem() {
             formData.append("category",category)
             formData.append("foodType", foodType)
             formData.append("price", price)
+            formData.append("discount", serializeDiscountField(discountFormToPayload(discountForm)))
             if (backendImage) {
                 formData.append("image", backendImage)
             }
             const result = await axios.post(`${serverUrl}/api/item/edit-item/${itemId}`, formData, { withCredentials: true })
-            dispatch(setMyShopData(result.data))
+            try {
+                const shopResult = await axios.get(`${serverUrl}/api/shop/get-my`, { withCredentials: true })
+                dispatch(setMyShopData(shopResult.data))
+            } catch {
+                if (myShopData) {
+                    dispatch(setMyShopData({
+                        ...myShopData,
+                        items: (myShopData.items || []).map(item =>
+                            String(item._id) === String(result.data?._id) ? result.data : item
+                        )
+                    }))
+                }
+            }
             setLoading(false)
             navigate("/")
         } catch (error) {
-            console.log(error)
+            setError(error?.response?.data?.message || "Failed to edit item. Please try again.")
             setLoading(false)
         }
     }
@@ -80,6 +103,7 @@ function EditItem() {
      setCategory(currentItem?.category || "")
      setFoodType(currentItem?.foodType || "")
      setFrontendImage(currentItem?.image || "")
+     setDiscountForm(discountToForm(currentItem?.discount))
     },[currentItem])
     return (
         <div className='flex justify-center flex-col items-center p-6 bg-gradient-to-br from-orange-50 relative to-white min-h-screen'>
@@ -114,7 +138,7 @@ function EditItem() {
                     </div>
                     <div>
                         <label className='block text-sm font-medium text-gray-700 mb-1'>Price</label>
-                        <input type="number" placeholder='0' className='w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
+                        <input type="number" min='0' step='0.01' placeholder='0' className='w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
                             onChange={(e) => setPrice(e.target.value)}
                             value={price}
                         />
@@ -148,6 +172,17 @@ function EditItem() {
 
                         </select>
                     </div>
+
+                    <DiscountFields
+                        value={discountForm}
+                        onChange={(nextDiscount) => {
+                            setDiscountForm(nextDiscount)
+                            setDiscountErrors({})
+                        }}
+                        errors={discountErrors}
+                    />
+
+                    {error && <p className='text-sm text-red-600' role='alert'>{error}</p>}
 
                     <button className='w-full bg-[#ff4d2d] text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:bg-orange-600 hover:shadow-lg transition-all duration-200 cursor-pointer' disabled={loading}>
                         {loading?<ClipLoader size={20} color='white'/>:"Save"}

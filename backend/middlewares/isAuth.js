@@ -1,18 +1,27 @@
 import jwt from "jsonwebtoken"
+import { isCurrentAuthVersion } from "../utils/authVersion.js"
+import { isSessionTokenRevoked } from "../utils/sessionRevocation.js"
+import { getJwtSecret } from "../config/security.js"
 const isAuth=async (req,res,next) => {
     try {
-        const token=req.cookies.token
+        const token=req.cookies?.token || req.headers?.authorization?.replace(/^Bearer\s+/, "")
         if(!token){
-            return res.status(400).json({message:"token not found"})
+            return res.status(401).json({message:"Authentication token required"})
         }
-        const decodeToken=jwt.verify(token,process.env.JWT_SECRET)
-        if(!decodeToken){
- return res.status(400).json({message:"token not verify"})
+        const decodeToken=jwt.verify(token,getJwtSecret())
+        if(!decodeToken || !decodeToken.userId){
+            return res.status(401).json({message:"Invalid token payload"})
+        }
+        if(!(await isCurrentAuthVersion(decodeToken.userId, decodeToken.authVersion))){
+            return res.status(401).json({message:"Invalid or expired token"})
+        }
+        if(await isSessionTokenRevoked(token)){
+            return res.status(401).json({message:"Invalid or expired token"})
         }
         req.userId=decodeToken.userId
         next()
     } catch (error) {
-         return res.status(500).json({message:"isAuth error"})
+         return res.status(401).json({message:"Invalid or expired token"})
     }
 }
 

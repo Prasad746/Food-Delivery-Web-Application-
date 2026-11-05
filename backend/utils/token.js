@@ -1,11 +1,16 @@
 import jwt from "jsonwebtoken"
+import crypto from "crypto"
+import { normalizeAuthVersion } from "./authVersion.js"
+import { getJwtSecret } from "../config/security.js"
 
-const genToken=async (userId) => {
+const genToken=async (userId, authVersion=0) => {
     try {
-        const token= jwt.sign({userId},process.env.JWT_SECRET,{expiresIn:"7d"})
+        const version=normalizeAuthVersion(authVersion) ?? 0
+        const token= jwt.sign({userId, authVersion: version, jti: crypto.randomUUID()},getJwtSecret(),{expiresIn:"7d"})
         return token
     } catch (error) {
-        console.log(error)
+        console.error("token generation failed:", error?.message || "unknown error")
+        throw error
     }
 }
 
