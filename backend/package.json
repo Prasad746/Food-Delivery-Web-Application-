@@ -4,6 +4,7 @@
   "description": "",
   "type": "module",
   "scripts": {
+    "start": "node dev-bootstrap.js",
     "dev": "nodemon dev-bootstrap.js",
     "test": "node --test tests/**/*.test.js",
     "admin:provision": "node scripts/provision-admin.js"
